@@ -97,7 +97,7 @@ tcp-nodelay
 ccd-exclusive
 <% end -%>
 <% if @pam -%>
-plugin /usr/lib/openvpn/openvpn-auth-pam.so login
+plugin <%= scope.lookupvar('::openvpn::params::pam_auth_plugin_location') %> <%= @pam_service %>
 <% end -%>
 <% if @management -%>
 management <%= @management_ip %> <%= @management_port %>

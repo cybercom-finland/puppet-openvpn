@@ -21,6 +21,12 @@ class openvpn::params {
     default  => 'nogroup'
   }
 
+  if ($::osfamily == 'RedHat' and $::operatingsystemmajrelease >= 7) {
+    $pam_auth_plugin_location = '/usr/lib64/openvpn/plugins/openvpn-plugin-auth-pam.so'
+  } else {
+    $pam_auth_plugin_location = '/usr/lib/openvpn/plugins/openvpn-plugin-auth-pam.so'
+  }
+
   case $::osfamily {
     'RedHat': {
       # Redhat/Centos >= 6.4

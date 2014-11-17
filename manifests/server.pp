@@ -347,6 +347,7 @@ define openvpn::server(
   $tcp_nodelay = false,
   $ccd_exclusive = false,
   $pam = false,
+  $pam_service = 'login',
   $management = false,
   $management_ip = 'localhost',
   $management_port = 7505,
