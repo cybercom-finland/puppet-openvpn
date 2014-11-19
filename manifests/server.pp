@@ -28,6 +28,10 @@
 #   Array.   List of OpenVPN endpoints to connect to.
 #   Default: undef
 #
+# [*ca_owner*]
+#   String.  Owner of CA keys
+#   Default: root
+#
 # [*common_name*]
 #   String.  Common name to be used for the SSL certificate
 #   Default: server
@@ -36,6 +40,10 @@
 #   String.  Which compression algorithim to use
 #   Default: comp-lzo
 #   Options: comp-lzo or '' (disable compression)
+#
+# [*config_owner*]
+#   String.  Owner of configuration
+#   Default: root
 #
 # [*dev*]
 #   String.  TUN/TAP virtual network device
@@ -322,8 +330,10 @@ define openvpn::server(
   $organization = undef,
   $email = undef,
   $remote = undef,
+  $ca_owner = 'root',
   $common_name = 'server',
   $compression = 'comp-lzo',
+  $config_owner = 'root',
   $dev = 'tun0',
   $user = 'nobody',
   $group = false,
@@ -423,6 +433,7 @@ define openvpn::server(
         ensure  => directory,
         mode    => '0750',
         recurse => true,
+        owner => $config_owner
     }
 
     ::openvpn::ca { $name:
@@ -432,6 +443,7 @@ define openvpn::server(
       organization => $organization,
       email        => $email,
       common_name  => $common_name,
+      ca_owner     => $ca_owner,
       group        => $group,
       ssl_key_size => $ssl_key_size,
       ca_expire    => $ca_expire,
