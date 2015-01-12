@@ -126,6 +126,10 @@
 #   Boolean.  Enable client to client visibility
 #   Default: false
 #
+# [*create_ca*]
+#   Boolean.  Whether to automatically create a CA for the server.
+#   Default: true
+#
 # [*tcp-nodelay*]
 #   Boolean, Enable/Disable.
 #   Default: false
@@ -269,6 +273,14 @@
 #   Integer. Value for timeout before trying the next server.
 #   Default: undef
 #
+# [*server_ca_cert*]
+#   String. A CA certificate used by the server. One will be generated if create_ca is true
+#   Default: undef
+#
+# [*server_ca_key*]
+#   String. A private key for the CA. One will be generated if create_ca is true
+#   Default: undef
+#
 # [*ping_timer_rem*]
 #   Boolean. Do not start clocking timeouts until a remote peer connects.
 #   Default: false
@@ -379,6 +391,9 @@ define openvpn::server(
   $persist_key = false,
   $persist_tun = false,
   $server_poll_timeout = undef,
+  $create_ca = true,
+  $server_ca_cert = undef,
+  $server_ca_key  = undef,
   $ping_timer_rem = false,
   $sndbuf = undef,
   $rcvbuf = undef,
@@ -439,6 +454,9 @@ define openvpn::server(
       key_cn       => $key_cn,
       key_name     => $key_name,
       key_ou       => $key_ou,
+      create_ca    => $create_ca,
+      ca_key       => $server_ca_key,
+      ca_cert      => $server_ca_cert,
     }
   } else {
     # VPN Client Mode

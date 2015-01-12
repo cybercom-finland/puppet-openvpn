@@ -99,6 +99,9 @@ define openvpn::ca(
   $key_cn = '',
   $key_name = '',
   $key_ou = '',
+  $create_ca = true,
+  $ca_cert = undef,
+  $ca_key = undef,
 ) {
 
   include openvpn
@@ -110,6 +113,14 @@ define openvpn::ca(
 
   File {
     group   => $group_to_set,
+  }
+
+  if $create_ca and ($ca_cert or $ca_key) {
+    warning("explicitly set ca cert and key will be ignored when \$create_ca is set to true.")
+  }
+
+  if !$create_ca and !($ca_cert and $ca_key) {
+    fail("You must define CA certificate and key explicitly when \$create_ca is set to false!")
   }
 
   exec { "copy easy-rsa to openvpn config folder ${name}":
@@ -156,15 +167,47 @@ define openvpn::ca(
     require  => File["/etc/openvpn/${name}/easy-rsa/vars"],
   }
 
-  exec { "initca ${name}":
-    command  => '. ./vars && ./pkitool --initca',
-    cwd      => "/etc/openvpn/${name}/easy-rsa",
-    creates  => "/etc/openvpn/${name}/easy-rsa/keys/ca.key",
-    provider => 'shell',
-    require  => [
-      Exec["generate dh param ${name}"],
-      File["/etc/openvpn/${name}/easy-rsa/openssl.cnf"]
-    ],
+  if ($create_ca) {
+    exec { "initca ${name}":
+      command  => '. ./vars && ./pkitool --initca',
+      cwd      => "/etc/openvpn/${name}/easy-rsa",
+      creates  => "/etc/openvpn/${name}/easy-rsa/keys/ca.key",
+      provider => 'shell',
+      require  => [
+        Exec["generate dh param ${name}"],
+        File["/etc/openvpn/${name}/easy-rsa/openssl.cnf"]
+      ],
+    }
+
+    file {["/etc/openvpn/${name}/easy-rsa/keys/ca.key", "/etc/openvpn/${name}/easy-rsa/keys/ca.crt"]:
+      ensure    => present,
+      mode      => 0640,
+      group     => $group_to_set,
+      show_diff => false,
+      require   => Exec["initca ${name}"]
+    }
+  } else {
+    file {"/etc/openvpn/${name}/easy-rsa/keys/":
+        ensure    => directory,
+        mode      => 0640,
+        group     => $group_to_set,
+    }
+
+    file {"/etc/openvpn/${name}/easy-rsa/keys/ca.key":
+        ensure    => present,
+        mode      => 0640,
+        group     => $group_to_set,
+        content   => $ca_key,
+        show_diff => false,
+    }
+    
+    file {"/etc/openvpn/${name}/easy-rsa/keys/ca.crt":
+        ensure    => present,
+        mode      => 0640,
+        group     => $group_to_set,
+        content   => $ca_cert,
+        show_diff => false,
+    }
   }
 
   exec { "generate server cert ${name}":
@@ -172,7 +215,7 @@ define openvpn::ca(
     cwd      => "/etc/openvpn/${name}/easy-rsa",
     creates  => "/etc/openvpn/${name}/easy-rsa/keys/${common_name}.key",
     provider => 'shell',
-    require  => Exec["initca ${name}"],
+    require  => [File["/etc/openvpn/${name}/easy-rsa/keys/ca.key"], File["/etc/openvpn/${name}/easy-rsa/keys/ca.crt"]],
   }
 
   file { "/etc/openvpn/${name}/keys":
