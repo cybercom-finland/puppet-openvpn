@@ -23,6 +23,10 @@
 #   String.  Common name to be used for the SSL certificate
 #   Default: server
 #
+# [*ca_owner*]
+#   String.  Owner of CA keys etc.
+#   Default: root
+#
 # [*group*]
 #   String.  User to drop privileges to after startup
 #   Default: depends on your $::osfamily
@@ -91,6 +95,7 @@ define openvpn::ca(
   $city,
   $organization,
   $email,
+  $ca_owner = 'root',
   $common_name = 'server',
   $group = false,
   $ssl_key_size = 1024,
@@ -132,7 +137,7 @@ define openvpn::ca(
 
   exec { "fix_easyrsa_file_permissions_${name}":
     refreshonly => true,
-    command     => "/bin/chmod 750 /etc/openvpn/${name}/easy-rsa/*",
+    command     => "/bin/chmod 750 /etc/openvpn/${name}/easy-rsa/*; /bin/chown -R ${ca_owner} /etc/openvpn/${name}/easy-rsa/keys",
   }
 
   file { "/etc/openvpn/${name}/easy-rsa/revoked":
