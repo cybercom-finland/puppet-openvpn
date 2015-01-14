@@ -28,6 +28,10 @@
 #   Array.   List of OpenVPN endpoints to connect to.
 #   Default: undef
 #
+# [*ca_owner*]
+#   String.  Owner of CA keys
+#   Default: root
+#
 # [*common_name*]
 #   String.  Common name to be used for the SSL certificate
 #   Default: server
@@ -36,6 +40,10 @@
 #   String.  Which compression algorithim to use
 #   Default: comp-lzo
 #   Options: comp-lzo or '' (disable compression)
+#
+# [*config_owner*]
+#   String.  Owner of configuration
+#   Default: root
 #
 # [*dev*]
 #   String.  TUN/TAP virtual network device
@@ -125,6 +133,10 @@
 # [*c2c*]
 #   Boolean.  Enable client to client visibility
 #   Default: false
+#
+# [*create_ca*]
+#   Boolean.  Whether to automatically create a CA for the server.
+#   Default: true
 #
 # [*tcp-nodelay*]
 #   Boolean, Enable/Disable.
@@ -269,6 +281,14 @@
 #   Integer. Value for timeout before trying the next server.
 #   Default: undef
 #
+# [*server_ca_cert*]
+#   String. A CA certificate used by the server. One will be generated if create_ca is true
+#   Default: undef
+#
+# [*server_ca_key*]
+#   String. A private key for the CA. One will be generated if create_ca is true
+#   Default: undef
+#
 # [*ping_timer_rem*]
 #   Boolean. Do not start clocking timeouts until a remote peer connects.
 #   Default: false
@@ -322,8 +342,10 @@ define openvpn::server(
   $organization = undef,
   $email = undef,
   $remote = undef,
+  $ca_owner = 'root',
   $common_name = 'server',
   $compression = 'comp-lzo',
+  $config_owner = 'root',
   $dev = 'tun0',
   $user = 'nobody',
   $group = false,
@@ -347,6 +369,7 @@ define openvpn::server(
   $tcp_nodelay = false,
   $ccd_exclusive = false,
   $pam = false,
+  $pam_service = 'login',
   $management = false,
   $management_ip = 'localhost',
   $management_port = 7505,
@@ -379,6 +402,9 @@ define openvpn::server(
   $persist_key = false,
   $persist_tun = false,
   $server_poll_timeout = undef,
+  $create_ca = true,
+  $server_ca_cert = undef,
+  $server_ca_key  = undef,
   $ping_timer_rem = false,
   $sndbuf = undef,
   $rcvbuf = undef,
@@ -423,6 +449,7 @@ define openvpn::server(
         ensure  => directory,
         mode    => '0750',
         recurse => true,
+        owner => $config_owner
     }
 
     ::openvpn::ca { $name:
@@ -432,6 +459,7 @@ define openvpn::server(
       organization => $organization,
       email        => $email,
       common_name  => $common_name,
+      ca_owner     => $ca_owner,
       group        => $group,
       ssl_key_size => $ssl_key_size,
       ca_expire    => $ca_expire,
@@ -439,6 +467,9 @@ define openvpn::server(
       key_cn       => $key_cn,
       key_name     => $key_name,
       key_ou       => $key_ou,
+      create_ca    => $create_ca,
+      ca_key       => $server_ca_key,
+      ca_cert      => $server_ca_cert,
     }
   } else {
     # VPN Client Mode
