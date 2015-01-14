@@ -96,6 +96,7 @@ define openvpn::ca(
   $organization,
   $email,
   $ca_owner = 'root',
+  $ca_group = 'root',
   $common_name = 'server',
   $group = false,
   $ssl_key_size = 1024,
@@ -137,12 +138,13 @@ define openvpn::ca(
 
   exec { "fix_easyrsa_file_permissions_${name}":
     refreshonly => true,
-    command     => "/bin/chmod 750 /etc/openvpn/${name}/easy-rsa/*; /bin/chown -R ${ca_owner} /etc/openvpn/${name}/easy-rsa/keys",
+    command     => "/bin/chmod 750 /etc/openvpn/${name}/easy-rsa/; /bin/chown -R ${ca_owner}:${ca_group} /etc/openvpn/${name}/easy-rsa/; /bin/chmod g+s /etc/openvpn/${name}/easy-rsa/keys",
   }
 
   file { "/etc/openvpn/${name}/easy-rsa/revoked":
     ensure  => directory,
     mode    => '0750',
+    
     recurse => true,
     require => Exec["copy easy-rsa to openvpn config folder ${name}"],
   }
@@ -166,15 +168,18 @@ define openvpn::ca(
 
   exec { "generate dh param ${name}":
     command  => '. ./vars && ./clean-all && ./build-dh',
+    user     => $ca_owner,
     cwd      => "/etc/openvpn/${name}/easy-rsa",
     creates  => "/etc/openvpn/${name}/easy-rsa/keys/dh${ssl_key_size}.pem",
     provider => 'shell',
-    require  => File["/etc/openvpn/${name}/easy-rsa/vars"],
+    require  => [File["/etc/openvpn/${name}/easy-rsa/vars"], 
+                 Exec["fix_easyrsa_file_permissions_${name}"]],
   }
 
   if ($create_ca) {
     exec { "initca ${name}":
       command  => '. ./vars && ./pkitool --initca',
+      user     => $ca_owner,
       cwd      => "/etc/openvpn/${name}/easy-rsa",
       creates  => "/etc/openvpn/${name}/easy-rsa/keys/ca.key",
       provider => 'shell',
@@ -187,7 +192,8 @@ define openvpn::ca(
     file {["/etc/openvpn/${name}/easy-rsa/keys/ca.key", "/etc/openvpn/${name}/easy-rsa/keys/ca.crt"]:
       ensure    => present,
       mode      => 0640,
-      group     => $group_to_set,
+      owner     => $ca_owner,
+      group     => $ca_group,
       show_diff => false,
       require   => Exec["initca ${name}"]
     }
@@ -195,21 +201,24 @@ define openvpn::ca(
     file {"/etc/openvpn/${name}/easy-rsa/keys/":
         ensure    => directory,
         mode      => 0640,
-        group     => $group_to_set,
+	owner     => $ca_owner,
+        group     => $ca_group,
     }
 
     file {"/etc/openvpn/${name}/easy-rsa/keys/ca.key":
         ensure    => present,
         mode      => 0640,
-        group     => $group_to_set,
+	owner     => $ca_owner,
+        group     => $ca_group,
         content   => $ca_key,
         show_diff => false,
     }
     
     file {"/etc/openvpn/${name}/easy-rsa/keys/ca.crt":
         ensure    => present,
-        mode      => 0640,
-        group     => $group_to_set,
+        mode      => 0644,
+        owner     => $ca_owner,
+        group     => $ca_group,
         content   => $ca_cert,
         show_diff => false,
     }
@@ -217,10 +226,19 @@ define openvpn::ca(
 
   exec { "generate server cert ${name}":
     command  => ". ./vars && ./pkitool --server ${common_name}",
+    user     => $ca_owner,
     cwd      => "/etc/openvpn/${name}/easy-rsa",
     creates  => "/etc/openvpn/${name}/easy-rsa/keys/${common_name}.key",
     provider => 'shell',
     require  => [File["/etc/openvpn/${name}/easy-rsa/keys/ca.key"], File["/etc/openvpn/${name}/easy-rsa/keys/ca.crt"]],
+  }
+  
+  file { ["/etc/openvpn/${name}/easy-rsa/keys/${common_name}.crt",
+          "/etc/openvpn/${name}/easy-rsa/keys/${common_name}.key"]:
+    ensure  => present,
+    group   => $group_to_set,
+    mode    => '0640',
+    require => Exec["generate server cert ${name}"]
   }
 
   file { "/etc/openvpn/${name}/keys":
@@ -231,7 +249,8 @@ define openvpn::ca(
 
   file { "/etc/openvpn/${name}/crl.pem":
     mode    => '0640',
-    group   =>  $group_to_set,
+    owner   => $ca_owner,
+    group   => $group_to_set,
     require => [Exec["create crl.pem on ${name}"], File["/etc/openvpn/${name}"]],
   }
 
