@@ -402,6 +402,7 @@ define openvpn::server(
   $persist_key = false,
   $persist_tun = false,
   $server_poll_timeout = undef,
+  $root_ca_path = false,
   $create_ca = true,
   $server_ca_cert = undef,
   $server_ca_key  = undef,
@@ -417,6 +418,10 @@ define openvpn::server(
   $tls_server = $proto ? {
     /tcp/   => true,
     default => false
+  }
+  $openvpn_root_ca_path = $root_ca_path ? {
+    false   => "/etc/openvpn/${name}/keys/ca.crt",
+    default => $root_ca_path,
   }
 
   $group_to_set = $group ? {
